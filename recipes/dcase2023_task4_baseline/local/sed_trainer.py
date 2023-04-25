@@ -86,7 +86,7 @@ class SEDTask4(pl.LightningModule):
         feat_params = self.hparams["feats"]
         self.mel_spec = MelSpectrogram(
             sample_rate=feat_params["sample_rate"],
-            n_fft=feat_params["n_window"],
+            n_fft=feat_params["n_fft"],
             win_length=feat_params["n_window"],
             hop_length=feat_params["hop_length"],
             f_min=feat_params["f_min"],
@@ -123,6 +123,10 @@ class SEDTask4(pl.LightningModule):
         )
 
         self.scaler = self._init_scaler()
+        
+        # *** model selection
+        self.model_selection = self.hparams["training"].get("model_selection")
+
         # buffer for event based scores which we compute using sed-eval
 
         self.val_buffer_student_synth = {
@@ -527,17 +531,17 @@ class SEDTask4(pl.LightningModule):
             alpha_st=1,
             # save_dir=os.path.join(save_dir, "student", "scenario1"),
         )
-        # psds2_student_sed_scores_eval = compute_psds_from_scores(
-        #     self.val_scores_postprocessed_buffer_student_synth,
-        #     ground_truth,
-        #     audio_durations,
-        #     dtc_threshold=0.1,
-        #     gtc_threshold=0.1,
-        #     cttc_threshold=0.3,
-        #     alpha_ct=0.5,
-        #     alpha_st=1,
-        #     # save_dir=os.path.join(save_dir, "student", "scenario1"),
-        # )
+        psds2_student_sed_scores_eval = compute_psds_from_scores(
+            self.val_scores_postprocessed_buffer_student_synth,
+            ground_truth,
+            audio_durations,
+            dtc_threshold=0.1,
+            gtc_threshold=0.1,
+            cttc_threshold=0.3,
+            alpha_ct=0.5,
+            alpha_st=1,
+            # save_dir=os.path.join(save_dir, "student", "scenario1"),
+        )
         intersection_f1_macro_student = compute_per_intersection_macro_f1(
             self.val_buffer_student_synth,
             self.hparams["data"]["synth_val_tsv"],
@@ -547,28 +551,28 @@ class SEDTask4(pl.LightningModule):
             self.val_buffer_student_synth[0.5], self.hparams["data"]["synth_val_tsv"],
         )[0]
 
-        # psds1_teacher_sed_scores_eval = compute_psds_from_scores(
-        #     self.val_scores_postprocessed_buffer_teacher_synth,
-        #     ground_truth,
-        #     audio_durations,
-        #     dtc_threshold=0.7,
-        #     gtc_threshold=0.7,
-        #     cttc_threshold=None,
-        #     alpha_ct=0,
-        #     alpha_st=1,
-        #     # save_dir=os.path.join(save_dir, "student", "scenario1"),
-        # )
-        # psds2_teacher_sed_scores_eval = compute_psds_from_scores(
-        #     self.val_scores_postprocessed_buffer_teacher_synth,
-        #     ground_truth,
-        #     audio_durations,
-        #     dtc_threshold=0.1,
-        #     gtc_threshold=0.1,
-        #     cttc_threshold=0.3,
-        #     alpha_ct=0.5,
-        #     alpha_st=1,
-        #     # save_dir=os.path.join(save_dir, "student", "scenario1"),
-        # )
+        psds1_teacher_sed_scores_eval = compute_psds_from_scores(
+            self.val_scores_postprocessed_buffer_teacher_synth,
+            ground_truth,
+            audio_durations,
+            dtc_threshold=0.7,
+            gtc_threshold=0.7,
+            cttc_threshold=None,
+            alpha_ct=0,
+            alpha_st=1,
+            # save_dir=os.path.join(save_dir, "student", "scenario1"),
+        )
+        psds2_teacher_sed_scores_eval = compute_psds_from_scores(
+            self.val_scores_postprocessed_buffer_teacher_synth,
+            ground_truth,
+            audio_durations,
+            dtc_threshold=0.1,
+            gtc_threshold=0.1,
+            cttc_threshold=0.3,
+            alpha_ct=0.5,
+            alpha_st=1,
+            # save_dir=os.path.join(save_dir, "student", "scenario1"),
+        )
         intersection_f1_macro_teacher = compute_per_intersection_macro_f1(
             self.val_buffer_teacher_synth,
             self.hparams["data"]["synth_val_tsv"],
@@ -579,32 +583,48 @@ class SEDTask4(pl.LightningModule):
             self.val_buffer_teacher_synth[0.5], self.hparams["data"]["synth_val_tsv"],
         )[0]
 
+        # *** Computation of obj metric and model selection (student / teacher)
+        model_selection = self.model_selection 
+
+        if model_selection == 'teacher':
+            psds1_target_sed_scores_eval = psds1_teacher_sed_scores_eval
+            psds2_target_sed_scores_eval = psds2_teacher_sed_scores_eval
+            synth_target_event_macro = synth_teacher_event_macro
+            intersection_f1_macro_target = intersection_f1_macro_teacher
+            weak_target_f1_macro = weak_teacher_f1_macro
+            
+        else: # "student" (default)
+            psds1_target_sed_scores_eval = psds1_student_sed_scores_eval
+            psds2_target_sed_scores_eval = psds2_student_sed_scores_eval
+            synth_target_event_macro = synth_student_event_macro
+            intersection_f1_macro_target = intersection_f1_macro_student
+            weak_target_f1_macro = weak_student_f1_macro
+            
         obj_metric_synth_type = self.hparams["training"].get("obj_metric_synth_type")
         if obj_metric_synth_type is None:
-            synth_metric = psds1_student_sed_scores_eval
+            synth_metric = psds1_target_sed_scores_eval
         elif obj_metric_synth_type == "event":
-            synth_metric = synth_student_event_macro
+            synth_metric = synth_target_event_macro
         elif obj_metric_synth_type == "intersection":
-            synth_metric = intersection_f1_macro_student
+            synth_metric = intersection_f1_macro_target
         elif obj_metric_synth_type == "psds":
-            synth_metric = psds1_student_sed_scores_eval
+            synth_metric = psds1_target_sed_scores_eval
         else:
             raise NotImplementedError(
                 f"obj_metric_synth_type: {obj_metric_synth_type} not implemented."
             )
 
-        obj_metric = torch.tensor(weak_student_f1_macro.item() + synth_metric)
+        obj_metric = torch.tensor(weak_target_f1_macro.item() + synth_metric)
 
         self.log("val/obj_metric", obj_metric, prog_bar=True)
         self.log("val/weak/student/macro_F1", weak_student_f1_macro)
         self.log("val/weak/teacher/macro_F1", weak_teacher_f1_macro)
         self.log("val/synth/student/psds1_sed_scores_eval", psds1_student_sed_scores_eval)
-        self.log(
-            "val/synth/student/intersection_f1_macro", intersection_f1_macro_student
-        )
-        self.log(
-            "val/synth/teacher/intersection_f1_macro", intersection_f1_macro_teacher
-        )
+        self.log("val/synth/student/psds2_sed_scores_eval", psds2_student_sed_scores_eval)
+        self.log("val/synth/teacher/psds1_sed_scores_eval", psds1_teacher_sed_scores_eval)
+        self.log("val/synth/teacher/psds2_sed_scores_eval", psds2_teacher_sed_scores_eval)
+        self.log("val/synth/student/intersection_f1_macro", intersection_f1_macro_student)
+        self.log("val/synth/teacher/intersection_f1_macro", intersection_f1_macro_teacher)
         self.log("val/synth/student/event_f1_macro", synth_student_event_macro)
         self.log("val/synth/teacher/event_f1_macro", synth_teacher_event_macro)
 
@@ -743,16 +763,16 @@ class SEDTask4(pl.LightningModule):
                     audio_id: audio_durations[audio_id]
                     for audio_id in ground_truth.keys()
                 }
-            psds1_student_psds_eval = compute_psds_from_operating_points(
-                self.test_psds_buffer_student,
-                self.hparams["data"]["test_tsv"],
-                self.hparams["data"]["test_dur"],
-                dtc_threshold=0.7,
-                gtc_threshold=0.7,
-                alpha_ct=0,
-                alpha_st=1,
-                save_dir=os.path.join(save_dir, "student", "scenario1"),
-            )
+            # psds1_student_psds_eval = compute_psds_from_operating_points(
+            #     self.test_psds_buffer_student,
+            #     self.hparams["data"]["test_tsv"],
+            #     self.hparams["data"]["test_dur"],
+            #     dtc_threshold=0.7,
+            #     gtc_threshold=0.7,
+            #     alpha_ct=0,
+            #     alpha_st=1,
+            #     save_dir=os.path.join(save_dir, "student", "scenario1"),
+            # )
             psds1_student_sed_scores_eval = compute_psds_from_scores(
                 self.test_scores_postprocessed_buffer_student,
                 ground_truth,
@@ -765,17 +785,17 @@ class SEDTask4(pl.LightningModule):
                 save_dir=os.path.join(save_dir, "student", "scenario1"),
             )
 
-            psds2_student_psds_eval = compute_psds_from_operating_points(
-                self.test_psds_buffer_student,
-                self.hparams["data"]["test_tsv"],
-                self.hparams["data"]["test_dur"],
-                dtc_threshold=0.1,
-                gtc_threshold=0.1,
-                cttc_threshold=0.3,
-                alpha_ct=0.5,
-                alpha_st=1,
-                save_dir=os.path.join(save_dir, "student", "scenario2"),
-            )
+            # psds2_student_psds_eval = compute_psds_from_operating_points(
+            #     self.test_psds_buffer_student,
+            #     self.hparams["data"]["test_tsv"],
+            #     self.hparams["data"]["test_dur"],
+            #     dtc_threshold=0.1,
+            #     gtc_threshold=0.1,
+            #     cttc_threshold=0.3,
+            #     alpha_ct=0.5,
+            #     alpha_st=1,
+            #     save_dir=os.path.join(save_dir, "student", "scenario2"),
+            # )
             psds2_student_sed_scores_eval = compute_psds_from_scores(
                 self.test_scores_postprocessed_buffer_student,
                 ground_truth,
@@ -788,16 +808,16 @@ class SEDTask4(pl.LightningModule):
                 save_dir=os.path.join(save_dir, "student", "scenario2"),
             )
 
-            psds1_teacher_psds_eval = compute_psds_from_operating_points(
-                self.test_psds_buffer_teacher,
-                self.hparams["data"]["test_tsv"],
-                self.hparams["data"]["test_dur"],
-                dtc_threshold=0.7,
-                gtc_threshold=0.7,
-                alpha_ct=0,
-                alpha_st=1,
-                save_dir=os.path.join(save_dir, "teacher", "scenario1"),
-            )
+            # psds1_teacher_psds_eval = compute_psds_from_operating_points(
+            #     self.test_psds_buffer_teacher,
+            #     self.hparams["data"]["test_tsv"],
+            #     self.hparams["data"]["test_dur"],
+            #     dtc_threshold=0.7,
+            #     gtc_threshold=0.7,
+            #     alpha_ct=0,
+            #     alpha_st=1,
+            #     save_dir=os.path.join(save_dir, "teacher", "scenario1"),
+            # )
             psds1_teacher_sed_scores_eval = compute_psds_from_scores(
                 self.test_scores_postprocessed_buffer_teacher,
                 ground_truth,
@@ -810,19 +830,19 @@ class SEDTask4(pl.LightningModule):
                 save_dir=os.path.join(save_dir, "teacher", "scenario1"),
             )
 
-            psds2_teacher_psds_eval = compute_psds_from_operating_points(
-                self.test_psds_buffer_teacher,
-                self.hparams["data"]["test_tsv"],
-                self.hparams["data"]["test_dur"],
-                dtc_threshold=0.1,
-                gtc_threshold=0.1,
-                cttc_threshold=0.3,
-                alpha_ct=0.5,
-                alpha_st=1,
-                save_dir=os.path.join(save_dir, "teacher", "scenario2"),
-            )
+            # psds2_teacher_psds_eval = compute_psds_from_operating_points(
+            #     self.test_psds_buffer_teacher,
+            #     self.hparams["data"]["test_tsv"],
+            #     self.hparams["data"]["test_dur"],
+            #     dtc_threshold=0.1,
+            #     gtc_threshold=0.1,
+            #     cttc_threshold=0.3,
+            #     alpha_ct=0.5,
+            #     alpha_st=1,
+            #     save_dir=os.path.join(save_dir, "teacher", "scenario2"),
+            # )
             psds2_teacher_sed_scores_eval = compute_psds_from_scores(
-                self.test_scores_postprocessed_buffer_student,
+                self.test_scores_postprocessed_buffer_teacher,
                 ground_truth,
                 audio_durations,
                 dtc_threshold=0.1,
@@ -859,17 +879,17 @@ class SEDTask4(pl.LightningModule):
                 self.hparams["data"]["test_dur"],
             )
 
-            best_test_result = torch.tensor(max(psds1_student_psds_eval, psds2_student_psds_eval))
+            # best_test_result = torch.tensor(max(psds1_teacher_sed_scores_eval, psds2_teacher_sed_scores_eval))
 
             results = {
-                "hp_metric": best_test_result,
-                "test/student/psds1_psds_eval": psds1_student_psds_eval,
+                # "hp_metric": best_test_result,
+                # "test/student/psds1_psds_eval": psds1_student_psds_eval,
                 "test/student/psds1_sed_scores_eval": psds1_student_sed_scores_eval,
-                "test/student/psds2_psds_eval": psds2_student_psds_eval,
+                # "test/student/psds2_psds_eval": psds2_student_psds_eval,
                 "test/student/psds2_sed_scores_eval": psds2_student_sed_scores_eval,
-                "test/teacher/psds1_psds_eval": psds1_teacher_psds_eval,
+                # "test/teacher/psds1_psds_eval": psds1_teacher_psds_eval,
                 "test/teacher/psds1_sed_scores_eval": psds1_teacher_sed_scores_eval,
-                "test/teacher/psds2_psds_eval": psds2_teacher_psds_eval,
+                # "test/teacher/psds2_psds_eval": psds2_teacher_psds_eval,
                 "test/teacher/psds2_sed_scores_eval": psds2_teacher_sed_scores_eval,
                 "test/student/event_f1_macro": event_macro_student,
                 "test/student/intersection_f1_macro": intersection_f1_macro_student,
@@ -887,7 +907,8 @@ class SEDTask4(pl.LightningModule):
             self.logger.log_hyperparams(self.hparams, results)
 
         for key in results.keys():
-            self.log(key, results[key], prog_bar=True, logger=False)
+            #print("\n",key,results[key]) #show results in output file
+            self.log(key, results[key], prog_bar=True, logger=True)
 
     def configure_optimizers(self):
         return [self.opt], [self.scheduler]

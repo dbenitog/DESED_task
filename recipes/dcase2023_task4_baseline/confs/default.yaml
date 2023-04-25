@@ -1,3 +1,5 @@
+log_dir: ./exp/2023_baseline
+
 training:
   #batch size: [synth, weak, unlabel]
   batch_size: [12, 12, 24]
@@ -21,6 +23,7 @@ training:
   precision: 32
   mixup: soft # Soft mixup gives the ratio of the mix to the labels, hard mixup gives a 1 to every label present.
   obj_metric_synth_type: intersection
+  model_selection: student
   precision: 32
   enable_progress_bar: True
 scaler:
@@ -31,37 +34,37 @@ scaler:
 data: # change with your paths if different.
   # NOTE: if you have data in 44kHz only then synth_folder will be the path where
   # resampled data will be placed.
-  synth_folder: "../../data/dcase/dataset/dcase_synth/audio/train/synthetic21_train/soundscapes_16k/"
-  synth_folder_44k: "../../data/dcase/dataset/dcase_synth/audio/train/synthetic21_train/soundscapes/"
-  synth_tsv:  "../../data/dcase/dataset/dcase_synth/metadata/train/synthetic21_train/soundscapes.tsv"
-  strong_folder: "../../data/dcase/dataset/audio/train/strong_label_real_16k/"
-  strong_folder_44k: "../../data/dcase/dataset/audio/train/strong_label_real/"
-  strong_tsv: "../../data/dcase/dataset/metadata/train/audioset_strong.tsv"
-  weak_folder: "../../data/dcase/dataset/audio/train/weak_16k/"
-  weak_folder_44k: "../../data/dcase/dataset/audio/train/weak/"
-  weak_tsv: "../../data/dcase/dataset/metadata/train/weak.tsv"
-  unlabeled_folder: "../../data/dcase/dataset/audio/train/unlabel_in_domain_16k/"
-  unlabeled_folder_44k: "../../data/dcase/dataset/audio/train/unlabel_in_domain/"
-  synth_val_folder: "../../data/dcase/dataset/audio/validation/synthetic21_validation/soundscapes_16k/"
-  synth_val_folder_44k: "../../data/dcase/dataset/dcase_synth/audio/validation/synthetic21_validation/soundscapes/"
-  synth_val_tsv:  "../../data/dcase/dataset/dcase_synth/metadata/validation/synthetic21_validation/soundscapes.tsv"
-  synth_val_dur: "../../data/dcase/dataset/dcase_synth/metadata/validation/synthetic21_validation/durations.tsv"
-  test_folder: "../../data/dcase/dataset/audio/validation/validation_16k/"
-  test_folder_44k: "../../data/dcase/dataset/audio/validation/validation/"
-  test_tsv: "../../data/dcase/dataset/metadata/validation/validation.tsv"
-  test_dur: "../../data/dcase/dataset/metadata/validation/validation_durations.tsv"
-  eval_folder: "../../data/dcase/dataset/audio/eval21_16k"
-  eval_folder_44k: "../../data/dcase/dataset/audio/eval21"
+  synth_folder: "/var/data/db/DCASE/DCASE2022T4Dataset/audio/train/synthetic21_train/soundscapes_16k/"
+  synth_folder_44k: "/var/data/db/DCASE/DCASE2022T4Dataset/audio/train/synthetic21_train/soundscapes/"
+  synth_tsv:  "/var/data/db/DCASE/DCASE2022T4Dataset/metadata/train/synthetic21_train/soundscapes.tsv"
+  weak_folder: "/var/data/db/DCASE/DCASE2022T4Dataset/audio/train/weak_16k/"
+  weak_folder_44k: "/var/data/db/DCASE/DCASE2022T4Dataset/audio/train/weak/"
+  weak_tsv: "/var/data/db/DCASE/DCASE2022T4Dataset/metadata/train/weak.tsv"
+  unlabeled_folder: "/var/data/db/DCASE/DCASE2022T4Dataset/audio/train/unlabel_in_domain_16k/"
+  unlabeled_folder_44k: "/var/data/db/DCASE/DCASE2022T4Dataset/audio/train/unlabel_in_domain/"
+  synth_val_folder: "/var/data/db/DCASE/DCASE2022T4Dataset/audio/validation/synthetic21_validation/soundscapes_16k/"
+  synth_val_folder_44k: "/var/data/db/DCASE/DCASE2022T4Dataset/audio/validation/synthetic21_validation/soundscapes/"
+  synth_val_tsv:  "/var/data/db/DCASE/DCASE2022T4Dataset/metadata/validation/synthetic21_validation/soundscapes.tsv"
+  synth_val_dur: "/var/data/db/DCASE/DCASE2022T4Dataset/metadata/validation/synthetic21_validation/durations.tsv"
+  test_folder: "/var/data/db/DCASE/DCASE2022T4Dataset/audio/validation/validation_16k/"
+  test_folder_44k: "/var/data/db/DCASE/DCASE2022T4Dataset/audio/validation/validation/"
+  test_tsv: "/var/data/db/DCASE/DCASE2022T4Dataset/metadata/validation/validation.tsv"
+  test_dur: "/var/data/db/DCASE/DCASE2022T4Dataset/metadata/validation/validation_durations.tsv"
+  eval_folder: "/var/data/db/DCASE/DCASE2022T4Dataset/audio/eval/eval21_16k"
+  eval_folder_44k: '/var/data/db/DCASE/DCASE2022T4Dataset/audio/eval/eval21' 
+  strong_folder: "/var/data/db/DCASE/DCASE2022T4Dataset/audio/train/strong_label_real_16k/"
+  strong_folder_44k: "./var/data/db/DCASE/DCASE2022T4Dataset/audio/train/strong_label_real/"
+  strong_tsv: "/var/data/db/DCASE/DCASE2022T4Dataset/metadata/train/audioset_strong.tsv"
   audio_max_len: 10
   fs: 16000
   net_subsample: 4
 opt:
   lr: 0.001
 feats:
-  n_mels: 128
-  n_filters: 2048
-  hop_length: 256
+  n_fft: 2048
   n_window: 2048
+  hop_length: 256
+  n_mels: 128
   sample_rate: 16000
   f_min: 0
   f_max: 8000

@@ -27,6 +27,10 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 
+from parse_conf import parse_config
+
+import ipdb as pdb
+
 def resample_data_generate_durations(config_data, test_only=False, evaluation=False):
     if not test_only:
         dsets = [
@@ -89,7 +93,7 @@ def single_run(
     encoder = ManyHotEncoder(
         list(classes_labels.keys()),
         audio_len=config["data"]["audio_max_len"],
-        frame_len=config["feats"]["n_filters"],
+        frame_len=config["feats"]["n_window"], # previously loaded from 'n_filters'
         frame_hop=config["feats"]["hop_length"],
         net_pooling=config["data"]["net_subsample"],
         fs=config["data"]["fs"],
@@ -316,6 +320,9 @@ def prepare_run(argv=None):
         default="./confs/default.yaml",
         help="The configuration file with all the experiment parameters.",
     )
+    
+    parser.add_argument("--conf_default", default="./confs/default.yaml")
+    
     parser.add_argument(
         "--log_dir",
         default="./exp/2023_baseline",
@@ -356,14 +363,35 @@ def prepare_run(argv=None):
         help="Evaluate the model specified"
     )
 
+    parser.add_argument(
+        "--resample_data",
+        default=False,
+        help="Whether to resample audio files. Default is False, should be True if data is not yet resampled."
+    )
+
+    parser.add_argument(
+        "--seed", 
+        type=int,
+        default=42,
+        help="Seed for random number generation"
+    )
+
     args = parser.parse_args(argv)
 
-    with open(args.conf_file, "r") as f:
-        configs = yaml.safe_load(f)
+    # Read config using parse_config function, setting default values if necessary
+    configs = parse_config(args.conf_file, args.conf_default)
+    
+    # with open(args.conf_file, "r") as f:
+    #     configs = yaml.safe_load(f)
 
     evaluation = False 
     test_from_checkpoint = args.test_from_checkpoint
 
+    configs["training"].update({'seed': args.seed})
+    
+    # Load log_dir from conf file
+    args.log_dir = configs.get('log_dir', args.log_dir)
+    
     if args.eval_from_checkpoint is not None:
         test_from_checkpoint = args.eval_from_checkpoint
         evaluation = True
@@ -383,7 +411,10 @@ def prepare_run(argv=None):
         configs["training"]["batch_size_val"] = 1
 
     test_only = test_from_checkpoint is not None
-    resample_data_generate_durations(configs["data"], test_only, evaluation)
+    
+    if args.resample_data:
+        resample_data_generate_durations(configs["data"], test_only, evaluation)
+    
     return configs, args, test_model_state_dict, evaluation
 
 if __name__ == "__main__":

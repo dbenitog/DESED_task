@@ -1,14 +1,21 @@
 # ignore output files
 oar_job_*
 OAR*
-recipes/dcase2020_task4_baseline/logs/*
-recipes/dcase2020_task4_baseline/logs*
+recipes/*/logs/*
+recipes/*/logs*
+recipes/*/lightning_logs/*
+recipes/*/outputs/*
+recipes/*/ckpt/*
+
+# ignore experiment folders
+recipes/*/exp
 
 #ignore data folders
-recipes/dcase2020_task4_baseline/data
-recipes/dcase2020_task4_baseline/exp_out/Mean*
+data/audio/
+recipes/*/data
+recipes/*/exp_out/Mean*
 # to remove this line
-recipes/dcase2020_task4_baseline/data/desed2021
+recipes/*/data/desed2021
 
 
 #visual studio files

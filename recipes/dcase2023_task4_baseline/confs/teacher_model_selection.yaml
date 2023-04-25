@@ -1,0 +1,10 @@
+# Baseline CRNN experiment with Teacher model selection
+# (remaining parameters are loaded from default.yaml)
+
+log_dir: ./exp/sed_bs_ms_teacher
+
+training:
+  n_epochs: 1000
+  early_stop_patience: 100
+  model_selection: teacher
+  test_validation: True

@@ -1,0 +1,25 @@
+# T++ CRNN experiment with Teacher model selection
+# (remaining parameters are loaded from default.yaml)
+
+log_dir: ./exp/sed_tpp_ms_teacher
+
+training:
+  #batch size: [synth, weak, unlabel]
+  batch_size: [9, 9, 18]
+  batch_size_val: 18
+  n_epochs: 1000
+  early_stop_patience: 100
+  model_selection: teacher
+  test_validation: True
+
+feats: # Tpp resolution
+  n_fft: 1024 # previously called "n_filters" 
+  n_window: 1024
+  hop_length: 128
+  n_mels: 64
+  sample_rate: 16000
+  f_min: 0
+  f_max: 8000
+
+net:
+  pooling: [ [ 2, 1 ], [ 2, 2 ], [ 1, 2 ], [ 1, 2 ], [ 1, 2 ], [ 1, 2 ], [ 1, 2 ] ]
